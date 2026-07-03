@@ -2,7 +2,3 @@ changelog:
   exclude:
     labels:
       - skip_rn
-  categories:
-    - title: What's Changed
-      labels:
-        - "*"
