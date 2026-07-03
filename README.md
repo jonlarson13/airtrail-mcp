@@ -56,12 +56,34 @@ This produces `airtrail-mcp.mcpb`. Install it the same way as the downloaded ver
 ```sh
 npm install
 npm run build
-AIRTRAIL_BASE_URL="https://airtrail.example.com" AIRTRAIL_API_KEY="your-api-key" node server/index.js
 ```
 
-Point your MCP client's server config at `server/index.js` with those environment variables set. Add `AERODATABOX_API_KEY` to also enable `lookup_flight` / `lookup_aircraft`, and any of `AIRTRAIL_ALLOW_MULTI_USER_SCOPE=true`, `AIRTRAIL_ENABLE_DELETE_FLIGHT=true`, `AIRTRAIL_ALLOW_INSECURE_HTTP=true` per the settings table above.
+This produces `server/index.js`. Instead of installing the `.mcpb`, you can point an MCP client at this file directly by adding it to that client's JSON config, using an absolute path:
 
+```json
+{
+  "mcpServers": {
+    "airtrail": {
+      "command": "node",
+      "args": ["/absolute/path/to/airtrail-mcp/server/index.js"],
+      "env": {
+        "AIRTRAIL_BASE_URL": "https://airtrail.example.com",
+        "AIRTRAIL_API_KEY": "your-api-key"
+      }
+    }
+  }
+}
+```
 
+Add `AERODATABOX_API_KEY` to also enable `lookup_flight` / `lookup_aircraft`, and any of `AIRTRAIL_ALLOW_MULTI_USER_SCOPE`, `AIRTRAIL_ENABLE_DELETE_FLIGHT`, `AIRTRAIL_ALLOW_INSECURE_HTTP` (each `"true"`) per the settings table below.
+
+Where that config file lives depends on the client:
+
+- **Claude Desktop** — `claude_desktop_config.json`, under `~/Library/Application Support/Claude/` (macOS) or `%APPDATA%\Claude\` (Windows). Restart Claude Desktop after editing.
+- **Claude Code** — a `.mcp.json` in your project root (shared with the team) or `~/.claude.json` under the top-level `mcpServers` key (applies to all your projects).
+- **Other MCP clients** — most use the same `mcpServers` object shape; check that client's docs for the exact file location.
+
+You can also skip the build step above and run against source directly during development — see [Development](#development).
 
 ## Security-relevant settings
 

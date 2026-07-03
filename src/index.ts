@@ -1,9 +1,15 @@
 #!/usr/bin/env node
+import { readFileSync } from "node:fs";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { AirtrailApiError, AirtrailClient } from "./airtrail-client.js";
 import { AerodataboxClient } from "./aerodatabox-client.js";
+
+const manifest = JSON.parse(readFileSync(new URL("../manifest.json", import.meta.url), "utf8")) as {
+  name: string;
+  version: string;
+};
 
 function envFlag(name: string): boolean {
   return (process.env[name] ?? "").trim().toLowerCase() === "true";
@@ -50,8 +56,8 @@ const client = new AirtrailClient({ baseUrl, apiKey });
 const aerodatabox = isConfiguredValue(aerodataboxApiKey) ? new AerodataboxClient(aerodataboxApiKey) : null;
 
 const server = new McpServer({
-  name: "airtrail-mcp",
-  version: "0.1.0",
+  name: manifest.name,
+  version: manifest.version,
 });
 
 function toolResult(data: unknown) {
@@ -183,7 +189,10 @@ server.registerTool(
       datePrecision: z.enum(["day", "month", "year"]).optional().describe('Precision of the provided date. Defaults to "day".'),
       seats: z
         .array(seatSchema)
-        .describe("Seat assignments for this flight. Each seat needs a userId or guestName; at least one needs a userId."),
+        .describe("Seat assignments for this flight. Each seat needs a userId or guestName; at least one needs a userId.")
+        .refine((seats) => seats.some((seat) => seat.userId), {
+          message: "At least one seat must have a userId.",
+        }),
       airline: z.string().optional().describe("Airline ICAO code."),
       flightNumber: z.string().optional().describe("Flight number."),
       aircraft: z.string().optional().describe("Aircraft type ICAO code."),
