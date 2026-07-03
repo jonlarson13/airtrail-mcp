@@ -37,13 +37,16 @@ jobs:
             fs.writeFileSync('manifest.json', JSON.stringify(manifest, null, 2) + '\n');
           "
 
-      - name: Build MCPB bundle
-        run: npm run mcpb:pack
+      - name: Build
+        run: npm run build
+
+      - name: Package MCPB bundle
+        run: npx mcpb pack . "airtrail-mcp-$VERSION.mcpb"
 
       - name: Create GitHub release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "$GITHUB_REF_NAME" airtrail-mcp.mcpb \
+          gh release create "$GITHUB_REF_NAME" "airtrail-mcp-$VERSION.mcpb" \
             --title "$GITHUB_REF_NAME" \
             --generate-notes
