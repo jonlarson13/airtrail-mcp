@@ -5,6 +5,7 @@
   "version": "0.1.0",
   "description": "Query and manage your flight history from a self-hosted AirTrail instance.",
   "long_description": "Connects Claude to a self-hosted AirTrail flight-tracking instance. List your logged flights, look up flight details, create or update flight entries, delete flights, and export your flight history — all via AirTrail's REST API using a personal API key.",
+  "icon": "airtrail-icon.png",
   "author": {
     "name": "Jon Larson"
   },
