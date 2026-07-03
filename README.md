@@ -46,18 +46,26 @@ AirTrail's own REST API does not enrich flights from a flight number — the bui
 
 ## Install via .mcpb (Claude Desktop, etc.)
 
-1. Build the bundle:
-   ```sh
-   npm install
-   npm run mcpb:pack
-   ```
-   This produces `airtrail-mcp.mcpb`.
+### Easiest: download a prebuilt release
+
+1. Grab the latest `airtrail-mcp-<version>.mcpb` from the [Releases page](https://github.com/jonlarson13/airtrail-mcp/releases/latest).
 2. Double-click the `.mcpb` file, or use your MCP client's "install extension" option.
 3. When prompted, enter:
    - **AirTrail instance URL** — e.g. `https://airtrail.example.com`
    - **API key** — from Settings → Security in your AirTrail instance
    - **AeroDataBox API key** *(optional)* — leave blank to skip flight-number enrichment
    - **Allow querying other users' flights**, **Enable flight deletion**, **Allow insecure HTTP** *(all optional, off by default)* — see the settings table above before turning these on
+
+### Advanced: build the bundle yourself
+
+If you want to run from source, modify the server, or verify the bundle before installing:
+
+```sh
+npm install
+npm run mcpb:pack
+```
+
+This produces `airtrail-mcp.mcpb`. Install it the same way as the downloaded version above (step 2).
 
 ## Run manually (any MCP client)
 
