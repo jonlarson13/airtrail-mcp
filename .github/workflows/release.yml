@@ -2,15 +2,44 @@ name: Release
 
 on:
   push:
-    tags:
-      - "v*.*.*"
+    branches:
+      - main
+    paths:
+      - manifest.json
 
 permissions:
   contents: write
 
 jobs:
-  release:
+  check-version:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      changed: ${{ steps.check.outputs.changed }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Compare manifest version to previous commit
+        id: check
+        run: |
+          NEW=$(node -p "require('./manifest.json').version")
+          OLD=$(git show HEAD^:manifest.json 2>/dev/null | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).version" 2>/dev/null || echo "")
+          echo "version=$NEW" >> "$GITHUB_OUTPUT"
+          if [ "$NEW" != "$OLD" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  release:
+    needs: check-version
+    if: needs.check-version.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.check-version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,29 +53,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Derive version from tag
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
-
-      - name: Sync version into package.json and manifest.json
-        run: |
-          npm pkg set version="$VERSION"
-          node -e "
-            const fs = require('fs');
-            const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
-            manifest.version = process.env.VERSION;
-            fs.writeFileSync('manifest.json', JSON.stringify(manifest, null, 2) + '\n');
-          "
-
       - name: Build
         run: npm run build
 
       - name: Package MCPB bundle
         run: npx mcpb pack . "airtrail-mcp-$VERSION.mcpb"
 
+      - name: Tag release
+        run: |
+          git tag "v$VERSION"
+          git push origin "v$VERSION"
+
       - name: Create GitHub release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "$GITHUB_REF_NAME" "airtrail-mcp-$VERSION.mcpb" \
-            --title "$GITHUB_REF_NAME" \
+          gh release create "v$VERSION" "airtrail-mcp-$VERSION.mcpb" \
+            --title "v$VERSION" \
             --generate-notes
