@@ -1,0 +1,23 @@
+{
+  "name": "airtrail-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for self-hosted AirTrail flight-tracking instances",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node esbuild.config.mjs",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node server/index.js",
+    "mcpb:pack": "npm run build && mcpb pack . airtrail-mcp.mcpb"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.25.67"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "esbuild": "^0.24.2",
+    "typescript": "^5.7.2"
+  }
+}

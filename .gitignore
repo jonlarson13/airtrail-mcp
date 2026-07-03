@@ -1,0 +1,8 @@
+#Ignore local
+node_modules/
+build/
+server/
+*.mcpb
+*.log
+.DS_Store
+.claude

@@ -1,0 +1,10 @@
+node_modules/
+src/
+build/
+.claude/
+.git/
+.gitignore
+esbuild.config.mjs
+tsconfig.json
+package-lock.json
+*.mcpb

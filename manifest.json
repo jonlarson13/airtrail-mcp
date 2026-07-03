@@ -1,0 +1,87 @@
+{
+  "manifest_version": "0.3",
+  "name": "airtrail-mcp",
+  "display_name": "AirTrail",
+  "version": "0.1.0",
+  "description": "Query and manage your flight history from a self-hosted AirTrail instance.",
+  "long_description": "Connects Claude to a self-hosted AirTrail flight-tracking instance. List your logged flights, look up flight details, create or update flight entries, delete flights, and export your flight history — all via AirTrail's REST API using a personal API key.",
+  "author": {
+    "name": "Jon Larson"
+  },
+  "license": "MIT",
+  "keywords": ["flights", "aviation", "travel", "self-hosted", "airtrail"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jonlarson13/airtrail-mcp"
+  },
+  "homepage": "https://github.com/jonlarson13/airtrail-mcp",
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/index.js"],
+      "env": {
+        "AIRTRAIL_BASE_URL": "${user_config.base_url}",
+        "AIRTRAIL_API_KEY": "${user_config.api_key}",
+        "AERODATABOX_API_KEY": "${user_config.aerodatabox_api_key}",
+        "AIRTRAIL_ALLOW_MULTI_USER_SCOPE": "${user_config.allow_multi_user_scope}",
+        "AIRTRAIL_ENABLE_DELETE_FLIGHT": "${user_config.enable_delete_flight}",
+        "AIRTRAIL_ALLOW_INSECURE_HTTP": "${user_config.allow_insecure_http}"
+      }
+    }
+  },
+  "user_config": {
+    "base_url": {
+      "type": "string",
+      "title": "AirTrail instance URL",
+      "description": "The base URL of your self-hosted AirTrail instance, e.g. https://airtrail.example.com",
+      "required": true
+    },
+    "api_key": {
+      "type": "string",
+      "title": "API key",
+      "description": "API key generated from Settings → Security in your AirTrail instance",
+      "required": true,
+      "sensitive": true
+    },
+    "aerodatabox_api_key": {
+      "type": "string",
+      "title": "AeroDataBox API key (optional)",
+      "description": "RapidAPI key for AeroDataBox — the same key used in AirTrail's Settings → Integrations, if configured. Enables the lookup_flight and lookup_aircraft tools to enrich flights by flight number before saving.",
+      "required": false,
+      "sensitive": true
+    },
+    "allow_multi_user_scope": {
+      "type": "boolean",
+      "title": "Allow querying other users' flights",
+      "description": "Off by default: list_flights and export_flights are restricted to your own flights (scope=\"mine\"). Turn this on only if your API key belongs to an admin/owner and you want Claude to be able to request scope=\"user\"/\"all\", which exposes other users' flight and seat data.",
+      "required": false,
+      "default": false
+    },
+    "enable_delete_flight": {
+      "type": "boolean",
+      "title": "Enable flight deletion",
+      "description": "Off by default. Turn this on to add a delete_flight tool that lets Claude permanently delete logged flights. This action is irreversible.",
+      "required": false,
+      "default": false
+    },
+    "allow_insecure_http": {
+      "type": "boolean",
+      "title": "Allow insecure HTTP",
+      "description": "Off by default: the AirTrail instance URL must use https://. Turn this on only if your instance is only reachable over plain http:// (e.g. a trusted local network) — your API key will be sent unencrypted.",
+      "required": false,
+      "default": false
+    }
+  },
+  "tools": [
+    { "name": "list_flights", "description": "List logged flights. Restricted to your own flights unless multi-user scope is enabled." },
+    { "name": "get_flight", "description": "Retrieve full details for a single flight by ID." },
+    { "name": "save_flight", "description": "Create a new flight, or update an existing one if an id is given." },
+    { "name": "delete_flight", "description": "Permanently delete a flight by ID. Only available if flight deletion is enabled." },
+    { "name": "export_flights", "description": "Bulk export logged flights as JSON or YAML. Restricted to your own flights unless multi-user scope is enabled." },
+    { "name": "lookup_flight", "description": "Look up route/airline/aircraft/timing for a flight number via AeroDataBox." },
+    { "name": "lookup_aircraft", "description": "Look up an aircraft type ICAO code from its registration via AeroDataBox." }
+  ],
+  "tools_generated": false
+}
