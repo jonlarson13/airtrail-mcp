@@ -72,8 +72,16 @@ jobs:
           PR_BODY=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/pulls" --jq '.[0].body // ""')
           gh api "repos/${{ github.repository }}/releases/generate-notes" -f tag_name="v$VERSION" --jq '.body' > generated-notes.md
 
-          if [ -n "$PR_BODY" ]; then
-            printf '%s\n\n' "$PR_BODY" > release-notes.md
+          CUSTOM_NOTES=$(printf '%s' "$PR_BODY" | perl -0777 -ne '
+            if (/<!--\s*RN Start\s*-->(.*?)<!--\s*RN Stop\s*-->/s) {
+              my $t = $1;
+              $t =~ s/^\s+|\s+$//g;
+              print $t;
+            }
+          ')
+
+          if [ -n "$CUSTOM_NOTES" ]; then
+            printf '%s\n\n' "$CUSTOM_NOTES" > release-notes.md
             cat generated-notes.md >> release-notes.md
           else
             cp generated-notes.md release-notes.md
