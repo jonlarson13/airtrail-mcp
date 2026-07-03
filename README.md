@@ -28,6 +28,41 @@ An MCP server for [AirTrail](https://airtrail.johan.ohly.dk/), a self-hosted fli
 - A running AirTrail instance you control, reachable over **https://** (see "Allow insecure HTTP" below if that's not possible)
 - An API key from that instance: **Settings → Security → API Keys**. A non-admin key is strongly recommended — see "Multi-user scope" below.
 
+## Install via .mcpb (Claude Desktop, etc.)
+
+### Easiest: download a prebuilt release
+
+1. Grab the latest `airtrail-mcp-<version>.mcpb` from the [Releases page](https://github.com/jonlarson13/airtrail-mcp/releases/latest).
+2. Double-click the `.mcpb` file, or use your MCP client's "install extension" option.
+3. When prompted, enter:
+   - **AirTrail instance URL** — e.g. `https://airtrail.example.com`
+   - **API key** — from Settings → Security in your AirTrail instance
+   - **AeroDataBox API key** *(optional)* — leave blank to skip flight-number enrichment
+   - **Allow querying other users' flights**, **Enable flight deletion**, **Allow insecure HTTP** *(all optional, off by default)* — see the settings table above before turning these on
+
+### Advanced: build the bundle yourself
+
+If you want to run from source, modify the server, or verify the bundle before installing:
+
+```sh
+npm install
+npm run mcpb:pack
+```
+
+This produces `airtrail-mcp.mcpb`. Install it the same way as the downloaded version above (step 2).
+
+### Run manually (any MCP client)
+
+```sh
+npm install
+npm run build
+AIRTRAIL_BASE_URL="https://airtrail.example.com" AIRTRAIL_API_KEY="your-api-key" node server/index.js
+```
+
+Point your MCP client's server config at `server/index.js` with those environment variables set. Add `AERODATABOX_API_KEY` to also enable `lookup_flight` / `lookup_aircraft`, and any of `AIRTRAIL_ALLOW_MULTI_USER_SCOPE=true`, `AIRTRAIL_ENABLE_DELETE_FLIGHT=true`, `AIRTRAIL_ALLOW_INSECURE_HTTP=true` per the settings table above.
+
+
+
 ## Security-relevant settings
 
 These are off by default and must be explicitly enabled — either via the `.mcpb` install prompts or the corresponding environment variable.
@@ -43,31 +78,6 @@ Outbound requests to both AirTrail and AeroDataBox time out after 20s and 15s re
 ### Optional: flight enrichment via AeroDataBox
 
 AirTrail's own REST API does not enrich flights from a flight number — the built-in AeroDataBox lookup in AirTrail's UI only works over a logged-in browser session, not the API key. To get the same enrichment here, this server can call AeroDataBox directly: give it a RapidAPI key for AeroDataBox (the same one you'd enter in AirTrail's **Settings → Integrations**, if you have it configured there) and it exposes `lookup_flight` / `lookup_aircraft` tools. Claude can then call `lookup_flight` first and feed the results into `save_flight`. Without this key, those two tools return a clear error and the rest of the server works as normal.
-
-## Install via .mcpb (Claude Desktop, etc.)
-
-1. Build the bundle:
-   ```sh
-   npm install
-   npm run mcpb:pack
-   ```
-   This produces `airtrail-mcp.mcpb`.
-2. Double-click the `.mcpb` file, or use your MCP client's "install extension" option.
-3. When prompted, enter:
-   - **AirTrail instance URL** — e.g. `https://airtrail.example.com`
-   - **API key** — from Settings → Security in your AirTrail instance
-   - **AeroDataBox API key** *(optional)* — leave blank to skip flight-number enrichment
-   - **Allow querying other users' flights**, **Enable flight deletion**, **Allow insecure HTTP** *(all optional, off by default)* — see the settings table above before turning these on
-
-## Run manually (any MCP client)
-
-```sh
-npm install
-npm run build
-AIRTRAIL_BASE_URL="https://airtrail.example.com" AIRTRAIL_API_KEY="your-api-key" node server/index.js
-```
-
-Point your MCP client's server config at `server/index.js` with those environment variables set. Add `AERODATABOX_API_KEY` to also enable `lookup_flight` / `lookup_aircraft`, and any of `AIRTRAIL_ALLOW_MULTI_USER_SCOPE=true`, `AIRTRAIL_ENABLE_DELETE_FLIGHT=true`, `AIRTRAIL_ALLOW_INSECURE_HTTP=true` per the settings table above.
 
 ## Development
 
