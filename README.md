@@ -28,22 +28,6 @@ An MCP server for [AirTrail](https://airtrail.johan.ohly.dk/), a self-hosted fli
 - A running AirTrail instance you control, reachable over **https://** (see "Allow insecure HTTP" below if that's not possible)
 - An API key from that instance: **Settings → Security → API Keys**. A non-admin key is strongly recommended — see "Multi-user scope" below.
 
-## Security-relevant settings
-
-These are off by default and must be explicitly enabled — either via the `.mcpb` install prompts or the corresponding environment variable.
-
-| Setting | Env var | Default | Effect when enabled |
-| --- | --- | --- | --- |
-| Allow querying other users' flights | `AIRTRAIL_ALLOW_MULTI_USER_SCOPE` | off | Lets `list_flights`/`export_flights` use `scope="user"`/`"all"`. Only useful (and only works) with an admin/owner API key. Since AirTrail flights include other users' names and seat assignments, only enable this if you intend for Claude to see instance-wide data. |
-| Enable flight deletion | `AIRTRAIL_ENABLE_DELETE_FLIGHT` | off | Registers the `delete_flight` tool. Off by default since deletion is irreversible and AirTrail data returned to the model (e.g. flight notes) is not a trusted instruction source — treat this as "let Claude delete things" and enable deliberately. |
-| Allow insecure HTTP | `AIRTRAIL_ALLOW_INSECURE_HTTP` | off | Lets `AIRTRAIL_BASE_URL` use `http://`. Without it, the server refuses to start against a non-https URL, since your API key would otherwise be sent unencrypted. Only enable this for an instance you trust on a trusted network (e.g. local-only). |
-
-Outbound requests to both AirTrail and AeroDataBox time out after 20s and 15s respectively, so a hung/unreachable instance fails a tool call instead of hanging the conversation.
-
-### Optional: flight enrichment via AeroDataBox
-
-AirTrail's own REST API does not enrich flights from a flight number — the built-in AeroDataBox lookup in AirTrail's UI only works over a logged-in browser session, not the API key. To get the same enrichment here, this server can call AeroDataBox directly: give it a RapidAPI key for AeroDataBox (the same one you'd enter in AirTrail's **Settings → Integrations**, if you have it configured there) and it exposes `lookup_flight` / `lookup_aircraft` tools. Claude can then call `lookup_flight` first and feed the results into `save_flight`. Without this key, those two tools return a clear error and the rest of the server works as normal.
-
 ## Install via .mcpb (Claude Desktop, etc.)
 
 ### Easiest: download a prebuilt release
@@ -67,7 +51,7 @@ npm run mcpb:pack
 
 This produces `airtrail-mcp.mcpb`. Install it the same way as the downloaded version above (step 2).
 
-## Run manually (any MCP client)
+### Run manually (any MCP client)
 
 ```sh
 npm install
@@ -76,6 +60,24 @@ AIRTRAIL_BASE_URL="https://airtrail.example.com" AIRTRAIL_API_KEY="your-api-key"
 ```
 
 Point your MCP client's server config at `server/index.js` with those environment variables set. Add `AERODATABOX_API_KEY` to also enable `lookup_flight` / `lookup_aircraft`, and any of `AIRTRAIL_ALLOW_MULTI_USER_SCOPE=true`, `AIRTRAIL_ENABLE_DELETE_FLIGHT=true`, `AIRTRAIL_ALLOW_INSECURE_HTTP=true` per the settings table above.
+
+
+
+## Security-relevant settings
+
+These are off by default and must be explicitly enabled — either via the `.mcpb` install prompts or the corresponding environment variable.
+
+| Setting | Env var | Default | Effect when enabled |
+| --- | --- | --- | --- |
+| Allow querying other users' flights | `AIRTRAIL_ALLOW_MULTI_USER_SCOPE` | off | Lets `list_flights`/`export_flights` use `scope="user"`/`"all"`. Only useful (and only works) with an admin/owner API key. Since AirTrail flights include other users' names and seat assignments, only enable this if you intend for Claude to see instance-wide data. |
+| Enable flight deletion | `AIRTRAIL_ENABLE_DELETE_FLIGHT` | off | Registers the `delete_flight` tool. Off by default since deletion is irreversible and AirTrail data returned to the model (e.g. flight notes) is not a trusted instruction source — treat this as "let Claude delete things" and enable deliberately. |
+| Allow insecure HTTP | `AIRTRAIL_ALLOW_INSECURE_HTTP` | off | Lets `AIRTRAIL_BASE_URL` use `http://`. Without it, the server refuses to start against a non-https URL, since your API key would otherwise be sent unencrypted. Only enable this for an instance you trust on a trusted network (e.g. local-only). |
+
+Outbound requests to both AirTrail and AeroDataBox time out after 20s and 15s respectively, so a hung/unreachable instance fails a tool call instead of hanging the conversation.
+
+### Optional: flight enrichment via AeroDataBox
+
+AirTrail's own REST API does not enrich flights from a flight number — the built-in AeroDataBox lookup in AirTrail's UI only works over a logged-in browser session, not the API key. To get the same enrichment here, this server can call AeroDataBox directly: give it a RapidAPI key for AeroDataBox (the same one you'd enter in AirTrail's **Settings → Integrations**, if you have it configured there) and it exposes `lookup_flight` / `lookup_aircraft` tools. Claude can then call `lookup_flight` first and feed the results into `save_flight`. Without this key, those two tools return a clear error and the rest of the server works as normal.
 
 ## Development
 
