@@ -8,3 +8,4 @@ esbuild.config.mjs
 tsconfig.json
 package-lock.json
 *.mcpb
+.github
