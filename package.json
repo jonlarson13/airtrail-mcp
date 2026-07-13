@@ -17,7 +17,7 @@
   },
   "devDependencies": {
     "@anthropic-ai/mcpb": "^2.1.2",
-    "@types/node": "^26.1.0",
+    "@types/node": "^26.1.1",
     "esbuild": "^0.28.1",
     "typescript": "^6.0.3"
   },
