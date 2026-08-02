@@ -103,6 +103,69 @@ const seatSchema = z.object({
   seatClass: z.string().optional().describe('Cabin class, e.g. "economy", "business".'),
 });
 
+// Not in AirTrail's openapi.yaml, but accepted by the live API. Verified against AirTrail's own
+// server source (github.com/johanohly/AirTrail: src/lib/zod/flight.ts, src/lib/track/schema.ts,
+// src/lib/server/utils/flight.ts) rather than black-box testing.
+const MAX_TRACK_POINTS = 100_000;
+
+const coordinateSchema = z
+  .union([z.tuple([z.number(), z.number()]), z.tuple([z.number(), z.number(), z.number()])])
+  .refine(([lon, lat, alt]) => lon >= -180 && lon <= 180 && lat >= -90 && lat <= 90 && (alt === undefined || Number.isFinite(alt)), {
+    message: "Invalid coordinate: lon must be -180..180, lat must be -90..90.",
+  });
+
+const trackSchema = z
+  .object({
+    coordinates: z
+      .array(coordinateSchema)
+      .min(2)
+      .max(MAX_TRACK_POINTS)
+      .describe(`Track points as [lon, lat] or [lon, lat, alt] tuples, 2-${MAX_TRACK_POINTS} points.`),
+    times: z.array(z.number().int()).max(MAX_TRACK_POINTS).optional().describe("Unix timestamp (seconds) per point. Must match coordinates length if provided."),
+    groundSpeedKt: z.array(z.number()).max(MAX_TRACK_POINTS).optional().describe("Ground speed in knots per point. Must match coordinates length if provided."),
+    trackDeg: z.array(z.number()).max(MAX_TRACK_POINTS).optional().describe("Track/heading in degrees per point. Must match coordinates length if provided."),
+    ground: z.array(z.boolean()).max(MAX_TRACK_POINTS).optional().describe("Whether the aircraft was on the ground at each point. Must match coordinates length if provided."),
+    estimated: z
+      .array(z.boolean())
+      .max(MAX_TRACK_POINTS)
+      .optional()
+      .describe("Whether the segment leading into each point is estimated/interpolated rather than measured. Must match coordinates length if provided."),
+    sourceFormat: z.enum(["gpx", "kml", "csv", "readsb"]).describe("Format the track was derived from."),
+    sourceName: z.string().max(255).optional().describe("Name of the track source file, e.g. original filename."),
+  })
+  .refine(
+    (track) =>
+      (!track.times || track.times.length === track.coordinates.length) &&
+      (!track.groundSpeedKt || track.groundSpeedKt.length === track.coordinates.length) &&
+      (!track.trackDeg || track.trackDeg.length === track.coordinates.length) &&
+      (!track.ground || track.ground.length === track.coordinates.length) &&
+      (!track.estimated || track.estimated.length === track.coordinates.length),
+    { message: "times, groundSpeedKt, trackDeg, ground, and estimated must each match coordinates in length." },
+  );
+
+// AirTrail only persists a scheduled/actual timestamp when both halves of the pair are present —
+// if either the date or the paired Time field is missing, it silently writes null for both instead
+// of erroring (src/lib/server/utils/flight.ts: parseDateTimeField). Enforce pairing client-side so
+// callers get a clear rejection instead of a false "success".
+const scheduledTimePairs: [string, string][] = [
+  ["departureScheduled", "departureScheduledTime"],
+  ["arrivalScheduled", "arrivalScheduledTime"],
+  ["takeoffScheduled", "takeoffScheduledTime"],
+  ["takeoffActual", "takeoffActualTime"],
+  ["landingScheduled", "landingScheduledTime"],
+  ["landingActual", "landingActualTime"],
+];
+
+function assertScheduledTimePairs(input: Record<string, unknown>) {
+  for (const [dateKey, timeKey] of scheduledTimePairs) {
+    if (Boolean(input[dateKey]) !== Boolean(input[timeKey])) {
+      throw new Error(
+        `${dateKey} and ${timeKey} must be provided together — AirTrail silently discards both as null if only one is set.`,
+      );
+    }
+  }
+}
+
 server.registerTool(
   "list_flights",
   {
@@ -198,13 +261,38 @@ server.registerTool(
       aircraft: z.string().optional().describe("Aircraft type ICAO code."),
       aircraftReg: z.string().optional().describe("Aircraft registration."),
       flightReason: z.enum(["leisure", "business", "crew", "other"]).optional().describe("Reason for the flight."),
-      notes: z.string().optional().describe("Free-text notes about the flight."),
+      note: z.string().max(1000).optional().describe("Free-text notes about the flight."),
       customFields: z.record(z.string(), z.unknown()).optional().describe("Custom field values keyed by field name."),
+
+      // Not in AirTrail's openapi.yaml, but accepted by the live API. Unlike departure/arrival,
+      // these require a full ISO 8601 datetime WITH timezone offset (bare YYYY-MM-DD is rejected) —
+      // only the date portion is used, since the actual time of day comes entirely from the paired
+      // *Time field below. Both halves of each pair must be set together, or neither is saved.
+      departureScheduled: z.string().datetime({ offset: true }).optional().describe("Scheduled departure date: full ISO 8601 datetime with offset, e.g. 2026-08-02T00:00:00Z. Must be paired with departureScheduledTime."),
+      departureScheduledTime: z.string().optional().describe("Scheduled local departure time at the airport (24h or 12h format). Must be paired with departureScheduled."),
+      arrivalScheduled: z.string().datetime({ offset: true }).optional().describe("Scheduled arrival date: full ISO 8601 datetime with offset, e.g. 2026-08-02T00:00:00Z. Must be paired with arrivalScheduledTime."),
+      arrivalScheduledTime: z.string().optional().describe("Scheduled local arrival time at the airport (24h or 12h format). Must be paired with arrivalScheduled."),
+      takeoffScheduled: z.string().datetime({ offset: true }).optional().describe("Scheduled takeoff date: full ISO 8601 datetime with offset, e.g. 2026-08-02T00:00:00Z. Must be paired with takeoffScheduledTime."),
+      takeoffScheduledTime: z.string().optional().describe("Scheduled local takeoff time at the airport (24h or 12h format). Must be paired with takeoffScheduled."),
+      takeoffActual: z.string().datetime({ offset: true }).optional().describe("Actual takeoff date: full ISO 8601 datetime with offset, e.g. 2026-08-02T00:00:00Z. Must be paired with takeoffActualTime."),
+      takeoffActualTime: z.string().optional().describe("Actual local takeoff time at the airport (24h or 12h format). Must be paired with takeoffActual."),
+      landingScheduled: z.string().datetime({ offset: true }).optional().describe("Scheduled landing date: full ISO 8601 datetime with offset, e.g. 2026-08-02T00:00:00Z. Must be paired with landingScheduledTime."),
+      landingScheduledTime: z.string().optional().describe("Scheduled local landing time at the airport (24h or 12h format). Must be paired with landingScheduled."),
+      landingActual: z.string().datetime({ offset: true }).optional().describe("Actual landing date: full ISO 8601 datetime with offset, e.g. 2026-08-02T00:00:00Z. Must be paired with landingActualTime."),
+      landingActualTime: z.string().optional().describe("Actual local landing time at the airport (24h or 12h format). Must be paired with landingActual."),
+
+      departureTerminal: z.string().max(10).optional().describe("Departure terminal."),
+      departureGate: z.string().max(10).optional().describe("Departure gate."),
+      arrivalTerminal: z.string().max(10).optional().describe("Arrival terminal."),
+      arrivalGate: z.string().max(10).optional().describe("Arrival gate."),
+
+      track: trackSchema.optional().describe("GPS track for this flight."),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   },
   async (input) => {
     try {
+      assertScheduledTimePairs(input);
       const result = await client.saveFlight(input);
       return toolResult(result);
     } catch (error) {
